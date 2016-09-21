@@ -55,6 +55,8 @@ app.get('/users',
         session: false
     }),
     function(req, res) {
+        console.log(req.user.username);
+        console.log(req.user.password)
         User.find({}, function(err, users) { //blank obj means it searches for EVERYTHING
             if (err) {
                 return res.status(err + 'basic authentication failed');
@@ -170,6 +172,8 @@ app.post('/users', jsonParser, passport.authenticate('basic', {
 //after authorization, the user should only be able to see their own username, and password, and can only view other's username but not password
 app.get("/users/:userId", function(req, res) {
     var id = req.params.userId;
+    
+    
     User.findOne({
         _id: id
     }, function(err, user) {
@@ -187,150 +191,128 @@ app.get("/users/:userId", function(req, res) {
 
 });
 
+
 //only the user can change his/her own username
 app.put("/users/:userId", jsonParser, passport.authenticate('basic', {
         session: false
     }), function(req, res) {
-    
-        
+    console.log(req.body);
     var id = req.params.userId;
     var newName = req.body.username;
     var newPassword = req.body.password;
-    var authenticatedId = req.user._id.toString();
-    
-    
-    if (id !== authenticatedId) {
+    console.log(typeof newPassword + " this is newPassword type");
+    var authenticatedId = req.user._id;
+    var type = req.body.type;
+    var hash;
+    console.log(id + "&" + authenticatedId);
+    console.log(typeof id + "&" + typeof authenticatedId);
+    if (id.toString() !== authenticatedId.toString()) {
+        console.log('pass authentication');
         return res.status(422).json({
-           
             'message': 'Unauthorized user'
         });
     }
     
-    // if (!newName) {
-    //     return res.status(422).json({
-    //         'message': 'Missing field: username'
-    //     });
-    // }
-    
-    // if (typeof newName !== 'string') {
-    //     return res.status(422).json({
-    //         'message': 'Incorrect field type: username'
-    //     });
-    // }
-    
-    // newName = newName.toString();
-    
-    // if (!newPassword) {
-    //     return res.status(422).json({
-    //         'message': 'Missing field: password'
-    //     });
-    // }
-    
-    // if (typeof newPassword !== 'string') {
-    //     return res.status(422).json({
-    //         'message': 'Incorrect field type: password'
-    //     });
-    // }
-    
-    // newPassword = newPassword.toString();
-    
-    bcrypt.genSalt(10, function(err, salt) {
-        if (err) {
-            return res.status(500).json({
-                message: 'Internal server error'
-            });
-        }
-
-        bcrypt.hash(newPassword, salt, function(err, hash) {
+    if(type === "updateUsernamePassword") {
+        console.log('type usernamepassword pass')
+        bcrypt.genSalt(10, function(err, salt) {
             if (err) {
                 return res.status(500).json({
                     message: 'Internal server error'
                 });
             }
+            bcrypt.hash(newPassword, salt, function(err, hash) {
+                if (err) {
+                    return res.status(500).json({
+                        message: 'Internal server error'
+                    });
+                }
+          
+             User.findByIdAndUpdate(
+                id,
+                {username: newName, password: hash}, 
+                {upsert: true}, 
+                function(err, user) {
+                    console.log('username and password changed');
+                    res.status(200).json({})
+                    });
 
-    User.findOne({_id: authenticatedId}, function(err, user) {
-        
-    })
+            });
+        });
+    }
+    
+    if(type === "updateUsername") {
+        console.log('type username pass')
+             User.findByIdAndUpdate(
+                id,
+                {username: newName, password: hash}, 
+                {upsert: true}, 
+                function(err, user) {
+                    console.log('username changed');
+                    res.status(200).json({})
+                }
+            );
+    }
+    
+    // if(type == "updatePassword") {};
+    
+    
+ 
+    
+//     bcrypt.genSalt(10, function(err, salt) {
+//         if (err) {
+//             return res.status(500).json({
+//                 message: 'Internal server error'
+//             });
+//         }
+//             bcrypt.hash(newPassword, salt, function(err, hash) {
+//             if (err) {
+//                 return res.status(500).json({
+//                     message: 'Internal server error'
+//                 });
+//             }
+//         });
+//     });
+//     console.log("hash: " + hash);
+//     console.log("hash type: " + typeof hash);
+    
+//     var conditionUser = (newName && typeof newName.toString() === 'string');
+//     var conditionPassword = (newPassword && typeof newPassword.toString() === 'string');
+//     var conditionUserPassword = (conditionUser && conditionPassword && {_id: authenticatedId});
+    
+//     var updateUser = {username: newName, password: req.user.password};
+//     var updatePassword = {username: req.user.username, password: hash};
+//     var updateUserPassword = {username: newName, password: hash};
 
-
-// which one is undefined?
-// grab the one that's not undefined and update it on the database.
-
-var conditionUser = (newName && typeof newName.toString() === 'string');
-var conditionPassword = (newPassword && typeof newPassword.toString() === 'string');
-var conditionUserPassword = (conditionUser && conditionPassword && {_id: authenticatedId});
-
-var updateUser = {username: newName};
-var updatePassword = {password: hash};
-var updateUserPassword = {username: newName, password: hash};
-
-function update() {
-    if(conditionUserPassword) {
-        return updateUserPassword;
-    } else if(conditionUser) {
-        return updateUser;
-    } return updatePassword;
-}
-
-
-  User.findOneAndUpdate(
-        (conditionUserPassword|| conditionUser || conditionPassword),
-        update(), 
-        {upsert: true}, 
-        function(err, user) {
-            console.log('username and password changed');
-            res.status(200).json({})
-    });
-
-// var newObj;
-
+// function update() {
 //     if(conditionUserPassword) {
-//         newObj = {username: newName, password: hash};
-//         return;
+//         console.log("both are true");
+//         return updateUserPassword;
 //     } else if(conditionUser) {
-//       newObj = {username: newName};
-//       return;
-//     } else if(conditionPassword) {
-//       newObj = {password: hash};
-//       return;
+//         console.log("user is true");
+//         return updateUser;
+//     } else {
+//         console.log("password is true")
+//         return updatePassword;
 //     }
+// }
 
-  
+//   User.findByIdAndUpdate(
+//         // (conditionUserPassword|| conditionUser || conditionPassword),
+//         id,
+//         update(), 
+//         {upsert: true}, 
+//         function(err, user) {
+//             console.log('username and password changed');
+//             res.status(200).json({})
+//     });
 
-    // User.findOneAndUpdate(conditionUser, {_id: authenticatedId}, updateUser , {upsert: true}, function(err, user) {
-    //     console.log('usrname changed');
-    //     res.status(200).json({})
-    // });
-    
-    // User.findOneAndUpdate(conditionPassword, {_id: authenticatedId}, updatePassword , {upsert: true}, function(err, user) {
-    //     console.log('password changed');
-    //     res.status(200).json({})
-    // });
+});
 
-    
-    // var condition = newUsername ? { username: newUsername } : {username: {"$exists": false}};
-    
-    //     User.findOneAndUpdate(condition, {
-    //     _id: authenticatedId
-    // }, {
-    //     upsert: true
-    // }, function(err, user) { //upsert creates a new object if it doesn't already exists
-    //     console.log(res);
-    //     res.status(200).json({});
-    // });
-    
-    
-    // User.findOneAndUpdate({
-    //     _id: authenticatedId
-    // }, req.body, {
-    //     upsert: true
-    // }, function(err, user) { //upsert creates a new object if it doesn't already exists
-    //     console.log(res);
-    //     res.status(200).json({});
-    // });
-});
-});
-});
+
+
+
+
 //only the authenticated username can delete his/her own account 
 app.delete("/users/:userId", jsonParser, function(req, res) {
     var id = req.params.userId;
