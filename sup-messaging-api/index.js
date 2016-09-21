@@ -55,8 +55,8 @@ app.get('/users',
         session: false
     }),
     function(req, res) {
-        console.log(req.user.username);
-        console.log(req.user.password)
+        console.log(typeof req.user.username);
+        console.log(typeof req.user.password);
         User.find({}, function(err, users) { //blank obj means it searches for EVERYTHING
             if (err) {
                 return res.status(err + 'basic authentication failed');
@@ -70,9 +70,7 @@ app.get('/users',
     }
 );
 
-app.post('/users', jsonParser, passport.authenticate('basic', {
-    session: false
-}), function(req, res) {
+app.post('/users', jsonParser, function(req, res) {
     if (!req.body) {
         return res.status(400).json({
             message: "No request body"
@@ -192,121 +190,81 @@ app.get("/users/:userId", function(req, res) {
 });
 
 
-//only the user can change his/her own username
+//only the user can change his/her own username - lavie done
 app.put("/users/:userId", jsonParser, passport.authenticate('basic', {
         session: false
     }), function(req, res) {
-    console.log(req.body);
-    var id = req.params.userId;
-    var newName = req.body.username;
-    var newPassword = req.body.password;
-    console.log(typeof newPassword + " this is newPassword type");
-    var authenticatedId = req.user._id;
-    var type = req.body.type;
-    var hash;
-    console.log(id + "&" + authenticatedId);
-    console.log(typeof id + "&" + typeof authenticatedId);
-    if (id.toString() !== authenticatedId.toString()) {
-        console.log('pass authentication');
-        return res.status(422).json({
-            'message': 'Unauthorized user'
-        });
-    }
+        
+        var id = req.params.userId,
+            newName = req.body.username,
+            newPassword = req.body.password,
+            authenticatedId = req.user._id,
+            type = req.body.type;
     
-    if(type === "updateUsernamePassword") {
-        console.log('type usernamepassword pass')
-        bcrypt.genSalt(10, function(err, salt) {
-            if (err) {
-                return res.status(500).json({
-                    message: 'Internal server error'
-                });
-            }
-            bcrypt.hash(newPassword, salt, function(err, hash) {
+        if (id.toString() !== authenticatedId.toString()) {
+            return res.status(422).json({
+                'message': 'Unauthorized user'
+            });
+        }
+        
+        if(type === "updateUsernamePassword") {
+            bcrypt.genSalt(10, function(err, salt) {
                 if (err) {
                     return res.status(500).json({
                         message: 'Internal server error'
                     });
                 }
-          
-             User.findByIdAndUpdate(
-                id,
-                {username: newName, password: hash}, 
-                {upsert: true}, 
-                function(err, user) {
-                    console.log('username and password changed');
-                    res.status(200).json({})
-                    });
-
+                bcrypt.hash(newPassword, salt, function(err, hash) {
+                    if (err) {
+                        return res.status(500).json({
+                            message: 'Internal server error'
+                        });
+                    }
+                 User.findByIdAndUpdate(
+                    id,
+                    {username: newName.toString(), password: hash.toString()}, 
+                    {upsert: true}, 
+                    function(err, user) {
+                        res.status(200).json({})
+                        });
+    
+                });
             });
-        });
-    }
-    
-    if(type === "updateUsername") {
-        console.log('type username pass')
-             User.findByIdAndUpdate(
+        }
+        
+        if(type === "updateUsername") {
+            User.findByIdAndUpdate(
                 id,
-                {username: newName, password: hash}, 
-                {upsert: true}, 
-                function(err, user) {
-                    console.log('username changed');
-                    res.status(200).json({})
-                }
+                    {username: newName.toString()}, 
+                        {upsert: true}, 
+                        function(err, user) {
+                            res.status(200).json({})
+                        }
             );
-    }
-    
-    // if(type == "updatePassword") {};
-    
-    
- 
-    
-//     bcrypt.genSalt(10, function(err, salt) {
-//         if (err) {
-//             return res.status(500).json({
-//                 message: 'Internal server error'
-//             });
-//         }
-//             bcrypt.hash(newPassword, salt, function(err, hash) {
-//             if (err) {
-//                 return res.status(500).json({
-//                     message: 'Internal server error'
-//                 });
-//             }
-//         });
-//     });
-//     console.log("hash: " + hash);
-//     console.log("hash type: " + typeof hash);
-    
-//     var conditionUser = (newName && typeof newName.toString() === 'string');
-//     var conditionPassword = (newPassword && typeof newPassword.toString() === 'string');
-//     var conditionUserPassword = (conditionUser && conditionPassword && {_id: authenticatedId});
-    
-//     var updateUser = {username: newName, password: req.user.password};
-//     var updatePassword = {username: req.user.username, password: hash};
-//     var updateUserPassword = {username: newName, password: hash};
-
-// function update() {
-//     if(conditionUserPassword) {
-//         console.log("both are true");
-//         return updateUserPassword;
-//     } else if(conditionUser) {
-//         console.log("user is true");
-//         return updateUser;
-//     } else {
-//         console.log("password is true")
-//         return updatePassword;
-//     }
-// }
-
-//   User.findByIdAndUpdate(
-//         // (conditionUserPassword|| conditionUser || conditionPassword),
-//         id,
-//         update(), 
-//         {upsert: true}, 
-//         function(err, user) {
-//             console.log('username and password changed');
-//             res.status(200).json({})
-//     });
-
+        }
+        if(type === "updatePassword") {
+             bcrypt.genSalt(10, function(err, salt) {
+                if (err) {
+                    return res.status(500).json({
+                        message: 'Internal server error'
+                    });
+                }
+                bcrypt.hash(newPassword, salt, function(err, hash) {
+                    if (err) {
+                        return res.status(500).json({
+                            message: 'Internal server error'
+                        });
+                    }
+                 User.findByIdAndUpdate(
+                    id,
+                    {password: hash.toString()}, 
+                    {upsert: true}, 
+                    function(err, user) {
+                        res.status(200).json({})
+                        });
+                });
+            });
+        };
 });
 
 
